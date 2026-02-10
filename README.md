@@ -1,6 +1,6 @@
 # crypto-tracker
 
-Run postgres locally
+To Run postgres locally
 
 docker run --rm -d \
   --name pg-crypto \
@@ -9,8 +9,3 @@ docker run --rm -d \
   -e POSTGRES_PASSWORD=crypto \
   -p 5432:5432 \
   postgres:16
-
-
-cloudsql
-
-Set a password for the default admin user "postgres"
