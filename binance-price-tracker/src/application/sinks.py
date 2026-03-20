@@ -13,8 +13,16 @@ class PriceTickSink(ABC):
     - High-level ingestion service depends on this interface, not concrete DB/console.
     """
 
+    async def start(self) -> None:
+        """Initialize resources or background tasks."""
+        pass
+
+    async def stop(self) -> None:
+        """Clean up resources or flush pending data."""
+        pass
+
     @abstractmethod
-    def write(self, tick: PriceTick) -> None:
+    async def write(self, tick: PriceTick) -> None:
         """Persist or emit one tick."""
         raise NotImplementedError
 
@@ -25,7 +33,7 @@ class StdoutSink(PriceTickSink):
     Cloud-native friendly: stdout -> logs -> export to BigQuery if desired.
     """
 
-    def write(self, tick: PriceTick) -> None:
+    async def write(self, tick: PriceTick) -> None:
         payload = asdict(tick)
         payload["event_time"] = tick.event_time.isoformat()
         print(json.dumps(payload, separators=(",", ":")))

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import signal
 import logging
 from dotenv import load_dotenv
 from pathlib import Path
@@ -78,8 +79,22 @@ async def main() -> None:
     throttle = PerSymbolThrottle(settings.throttle_seconds)
     service = PriceIngestionService(stream=stream, sink=sink, throttle=throttle, logger=log)
 
-    await service.run(symbols)
+    loop = asyncio.get_running_loop()
+    task = asyncio.create_task(service.run(symbols))
 
+    def _shutdown(sig: signal.Signals) -> None:
+        log.info(f"Received signal {sig.name}, initiating shutdown...")
+        task.cancel()
+
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, _shutdown, sig)
+
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+    log.info("Shutdown complete.")
 
 if __name__ == "__main__":
     asyncio.run(main())

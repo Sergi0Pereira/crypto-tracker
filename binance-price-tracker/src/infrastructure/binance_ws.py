@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from datetime import datetime, timezone
 from typing import AsyncIterator
 
@@ -31,22 +32,37 @@ class BinanceTickerStream:
 
     async def connect(self, symbols: list[str]) -> AsyncIterator[PriceTick]:
         url = self._build_url(symbols)
+        log = logging.getLogger("binance-price-tracker")
 
-        async with websockets.connect(
-            url,
-            ping_interval=20,   # Binance sends ping frames; websockets lib will respond with pong automatically
-            ping_timeout=60,
-            close_timeout=10,
-            max_queue=1000,
-        ) as ws:
-            async for message in self._iter_messages(ws):
-                tick = self._parse_tick(message)
-                if tick is not None:
-                    yield tick
+        while True:
+            try:
+                async with websockets.connect(
+                    url,
+                    ping_interval=20,   # Binance sends ping frames; websockets lib will respond with pong automatically
+                    ping_timeout=60,
+                    close_timeout=10,
+                    max_queue=1000,
+                ) as ws:
+                    log.info("WebSocket connected to Binance.")
+                    async for message in self._iter_messages(ws):
+                        tick = self._parse_tick(message)
+                        if tick is not None:
+                            yield tick
+            except (websockets.ConnectionClosed, websockets.InvalidStatusCode, asyncio.TimeoutError) as e:
+                log.warning(f"WebSocket disconnected: {e}. Reconnecting in 2 seconds...")
+                await asyncio.sleep(2)
+            except Exception as e:
+                log.error(f"Unexpected WebSocket error: {e}. Reconnecting in 5 seconds...")
+                await asyncio.sleep(5)
 
     async def _iter_messages(self, ws: WebSocketClientProtocol) -> AsyncIterator[dict]:
+        log = logging.getLogger("binance-price-tracker")
         async for raw in ws:
-            yield json.loads(raw)
+            try:
+                yield json.loads(raw)
+            except json.JSONDecodeError as e:
+                log.warning(f"Failed to parse JSON message: {e}")
+                continue
 
     def _parse_tick(self, msg: dict) -> PriceTick | None:
         data = msg.get("data")

@@ -31,9 +31,16 @@ class PriceIngestionService:
     async def run(self, symbols: list[str]) -> None:
         self._log.info("Starting ingestion for %d symbols", len(symbols))
 
-        async for tick in self._stream.connect(symbols):
-            if not self._throttle.should_emit(tick.symbol):
-                continue
+        await self._sink.start()
 
-            self._sink.write(tick)
-            self._log.info("Emitted tick: %s price=%s time=%s", tick.symbol, tick.last_price, tick.event_time.isoformat())
+        try:
+            async for tick in self._stream.connect(symbols):
+                if not self._throttle.should_emit(tick.symbol):
+                    continue
+
+                await self._sink.write(tick)
+                self._log.info("Emitted tick: %s price=%s time=%s", tick.symbol, tick.last_price, tick.event_time.isoformat())
+        except asyncio.CancelledError:
+            self._log.info("Service shutting down...")
+        finally:
+            await self._sink.stop()
