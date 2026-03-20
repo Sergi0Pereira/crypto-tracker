@@ -1,0 +1,337 @@
+/* ========================================================================
+   Theme & Base Styles
+   ======================================================================== */
+
+:root {
+  --color-bg-primary: #0b0e11;
+  --color-bg-panel: #181a20;
+  --color-text-primary: #eaecef;
+  --color-text-secondary: #848e9c;
+  --color-border: #2b3139;
+  --color-accent: #fcd535;
+  --color-success: #0ecb81;
+  --color-danger: #f6465d;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ========================================================================
+   Layout
+   ======================================================================== */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.main-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ========================================================================
+   Header
+   ======================================================================== */
+
+header {
+  background-color: var(--color-bg-panel);
+  border-bottom: 1px solid var(--color-border);
+  height: 4rem;
+  display: flex;
+  align-items: center;
+  padding: 0 1.5rem;
+  flex-shrink: 0;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.logo {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background-color: #fbbf24;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: #000;
+  font-size: 1.25rem;
+}
+
+h1 {
+  font-size: 1.25rem;
+  font-weight: bold;
+  letter-spacing: 0.05em;
+}
+
+/* ========================================================================
+   Sidebar
+   ======================================================================== */
+
+aside {
+  width: 20rem;
+  background-color: var(--color-bg-panel);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-header {
+  padding: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sidebar-header h2 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.market-list {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+.market-list::-webkit-scrollbar {
+  width: 0.5rem;
+}
+
+.market-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.market-list::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 0.25rem;
+}
+
+.market-list::-webkit-scrollbar-thumb:hover {
+  background: #4b5563;
+}
+
+.loading-msg {
+  padding: 1rem;
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+/* ========================================================================
+   Main Content
+   ======================================================================== */
+
+main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-bg-panel);
+  overflow: hidden;
+}
+
+.header-info {
+  height: 5rem;
+  border-bottom: 1px solid var(--color-border);
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  flex-shrink: 0;
+}
+
+.symbol-info h2 {
+  font-size: 1.875rem;
+  font-weight: bold;
+  margin-bottom: 0.25rem;
+}
+
+.symbol-info a {
+  font-size: 0.75rem;
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.symbol-info a:hover {
+  text-decoration: underline;
+}
+
+.info-block {
+  min-width: 10rem;
+}
+
+.info-label {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 0.25rem;
+}
+
+.info-value {
+  font-size: 1.125rem;
+  font-weight: bold;
+}
+
+.chart-container {
+  flex: 1;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* ========================================================================
+   Market Row
+   ======================================================================== */
+
+.market-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--color-border);
+  transition: background-color 150ms ease-in-out;
+}
+
+.market-row:hover {
+  background-color: var(--color-border);
+}
+
+.market-row.selected {
+  background-color: var(--color-border);
+}
+
+.symbol-name {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.price-display {
+  font-family: 'Courier New', monospace;
+  font-size: 0.875rem;
+}
+
+/* ========================================================================
+   Colors
+   ======================================================================== */
+
+.text-green {
+  color: var(--color-success);
+}
+
+.text-red {
+  color: var(--color-danger);
+}
+
+.bg-panel {
+  background-color: var(--color-bg-panel);
+}
+
+.border-panel {
+  border-color: var(--color-border);
+}
+
+/* ========================================================================
+   Animations
+   ======================================================================== */
+
+@keyframes flashGreen {
+  0% {
+    background-color: rgba(14, 203, 129, 0.3);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes flashRed {
+  0% {
+    background-color: rgba(246, 70, 93, 0.3);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.flash-green {
+  animation: flashGreen 0.8s ease-out;
+}
+
+.flash-red {
+  animation: flashRed 0.8s ease-out;
+}
+
+/* ========================================================================
+   Error Message
+   ======================================================================== */
+
+.error-message {
+  padding: 1rem;
+  text-align: center;
+  color: var(--color-danger);
+  font-size: 0.875rem;
+}
+
+/* ========================================================================
+   Responsive Design
+   ======================================================================== */
+
+@media (max-width: 768px) {
+  aside {
+    width: 15rem;
+  }
+
+  .header-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .info-block {
+    min-width: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .main-content {
+    flex-direction: column-reverse;
+  }
+
+  aside {
+    width: 100%;
+    max-height: 50%;
+  }
+
+  .header-info {
+    padding: 1rem;
+  }
+}
