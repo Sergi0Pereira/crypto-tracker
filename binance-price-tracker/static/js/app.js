@@ -41,7 +41,7 @@ export class CryptoTrackerApp {
     }
 
     try {
-      console.log(' Starting Crypto Tracker Application');
+      console.log('Starting Crypto Tracker Application');
       
       // Step 1: Ensure LightweightCharts is loaded
       if (typeof LightweightCharts === 'undefined') {
@@ -53,7 +53,7 @@ export class CryptoTrackerApp {
       if (!symbols || symbols.length === 0) {
         throw new Error('No trading symbols available');
       }
-      console.log(` Fetched ${symbols.length} symbols:`, symbols);
+      console.log(`Fetched ${symbols.length} symbols:`, symbols);
       
       // Step 3: Setup UI and initialize chart
       await this.setupUI(symbols);
@@ -64,7 +64,7 @@ export class CryptoTrackerApp {
       // Step 5: Connect WebSocket for real-time updates
       this.connectWebSocket(symbols);
       
-      console.log(' Application initialized successfully');
+      console.log('Application initialized successfully');
     } catch (error) {
       console.error(' Application initialization failed:', error);
       UIManager.showError(error.message);
@@ -75,7 +75,7 @@ export class CryptoTrackerApp {
    * @param {string[]} symbols - Array of symbols
    */
   async setupUI(symbols) {
-    console.log(' Setting up UI');
+    console.log('Setting up UI');
     
     // Initialize chart manager with chart container
     const chartContainer = document.getElementById('chart');
@@ -90,7 +90,7 @@ export class CryptoTrackerApp {
     
     // Initialize the chart
     await this.chartManager.initialize();
-    console.log(' Chart initialized');
+    console.log('Chart initialized');
     
     // Initialize market data store
     this.marketDataManager.initialize(symbols);
@@ -210,7 +210,7 @@ export class CryptoTrackerApp {
         });
       }
 
-      console.log(` Loading historical data for ${symbol} (${interval} over ${timeRange})`);
+      console.log(`Loading historical data for ${symbol} (${interval} over ${timeRange})`);
       
       const limit = ChartManager.getLimitForRange(timeRange, interval);
       
@@ -270,7 +270,7 @@ export class CryptoTrackerApp {
       }
       
       this.chartManager.setHistoricalData(symbol, allKlines);
-      console.log(` Loaded ${allKlines.length} ${interval} candles for ${symbol}`);
+      console.log(`Loaded ${allKlines.length} ${interval} candles for ${symbol}`);
     } catch (error) {
       if (this.currentFetchId === fetchId) {
         console.error(` Failed to load historical data for ${symbol}:`, error);
@@ -283,7 +283,7 @@ export class CryptoTrackerApp {
    * @param {string[]} symbols - Symbols to subscribe to
    */
   connectWebSocket(symbols) {
-    console.log('🔌 Connecting to Binance WebSocket');
+    console.log('Connecting to Binance WebSocket');
     
     this.wsManager = new WebSocketManager(
       symbols, 
