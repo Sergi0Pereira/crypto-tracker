@@ -171,6 +171,15 @@ export class CryptoTrackerApp {
     const displaySymbol = symbol.replace(/(USDT|BUSD|USDC)$/i, '/$1');
     DOM_ELEMENTS.activeSymbol().innerText = displaySymbol;
     
+    // Clear the header to avoid showing the stale price from the previous coin
+    const currentData = this.marketDataManager.get(symbol);
+    if (currentData && currentData.price !== 0) {
+      UIManager.updateHeader(symbol, currentData.price, currentData.change);
+    } else {
+      DOM_ELEMENTS.activePrice().innerText = "Loading...";
+      DOM_ELEMENTS.activeChange().innerText = "—";
+    }
+
     // Reset chart and load new data
     this.chartManager.reset();
     this.loadHistoricalData(symbol, this.chartManager.currentInterval, this.chartManager.currentRange);
@@ -271,6 +280,14 @@ export class CryptoTrackerApp {
       
       this.chartManager.setHistoricalData(symbol, allKlines);
       console.log(`Loaded ${allKlines.length} ${interval} candles for ${symbol}`);
+      
+      // Update header immediately from the last REST candle if WS hasn't provided data yet
+      const currentData = this.marketDataManager.get(symbol);
+      if (!currentData || currentData.price === 0) {
+        const lastCandle = allKlines[allKlines.length - 1];
+        const lastPrice = parseFloat(lastCandle[4]);
+        UIManager.updateHeader(symbol, lastPrice, currentData ? currentData.change : 0);
+      }
     } catch (error) {
       if (this.currentFetchId === fetchId) {
         console.error(` Failed to load historical data for ${symbol}:`, error);

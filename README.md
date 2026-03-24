@@ -78,7 +78,7 @@ binance-price-tracker/
 This guide provides step-by-step instructions for containerizing and deploying the Crypto Tracker application.
 
 ### 1. Build the Docker Image
-From the `binance-price-tracker` directory, build the image using the provided Dockerfile:
+From the `binance-price-tracker` directory, build the image using the provided multi-stage Dockerfile:
 ```bash
 docker build -t your-registry/crypto-tracker:latest .
 ```
@@ -91,80 +91,15 @@ docker push your-registry/crypto-tracker:latest
 ```
 
 ### 3. Run the Container on your VM
-On your target server, pull the image and run it in detached mode. This maps port 8000 on the host to port 8000 on the container:
+On your target server, pull the image and run it in detached mode. The container internally runs NGINX on port 8080. You can map it to port 80 (HTTP) on your host VM:
 ```bash
-docker run -d -p 8000:8000 --name crypto-app your-registry/crypto-tracker:latest
+docker run -d -p 80:8080 --name crypto-app your-registry/crypto-tracker:latest
 ```
 
-### 4. Configure NGINX Reverse Proxy
-To securely serve your application and route external traffic to your Docker container, install and configure NGINX on your VM.
+Once running, you can access the application directly via your VM's public IP or domain name at `http://your-vm-ip`.
 
-Install NGINX:
-```bash
-sudo apt update && sudo apt install nginx -y
-```
-
-Create a new NGINX configuration file:
-```bash
-sudo nano /etc/nginx/sites-available/crypto-tracker
-```
-
-Add the following configuration to proxy traffic to the Docker container running on port 8000:
-```nginx
-# Rate limiting zone for API protection
-limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
-
-server {
-    listen 80;
-    server_name yourdomain.com www.yourdomain.com;
-
-    # Security headers
-    add_header X-Frame-Options DENY;
-    add_header X-Content-Type-Options nosniff;
-    add_header X-XSS-Protection "1; mode=block";
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' wss://stream.binance.com:9443 https://api.binance.com;" always;
-
-    # Forward all standard requests to the Docker container
-    location / {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-
-        # Rate limiting
-        limit_req zone=api_limit burst=20 nodelay;
-    }
-
-    # Proxy WebSocket connections to backend
-    location /ws {
-        proxy_pass http://127.0.0.1:8000/ws;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-```
-
-Enable the site and restart NGINX:
-```bash
-sudo ln -s /etc/nginx/sites-available/crypto-tracker /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl restart nginx
-```
-
-### 5. Monitoring and Logs
-To check the logs of your running container:
+### 4. Monitoring and Logs
+The container runs both the FastAPI backend and NGINX reverse proxy managed by `supervisord`. To check the consolidated logs:
 ```bash
 docker logs -f crypto-app
-```
-
-To monitor NGINX errors:
-```bash
-sudo tail -f /var/log/nginx/error.log
 ```

@@ -194,6 +194,13 @@
       border-color: var(--color-accent);
       font-weight: 700;
     }
+    .time-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      background-color: var(--color-bg-panel-light);
+      color: var(--color-text-secondary);
+      border-color: var(--color-border);
+    }
     
     /* Chart Area */
     .chart-container { 
@@ -250,22 +257,6 @@
       flex: 1;
       width: 100%; 
       min-height: 0;
-    }
-
-    .chart-hint {
-      position: absolute;
-      bottom: 1rem;
-      left: 1rem;
-      font-size: 0.7rem;
-      color: var(--color-text-secondary);
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 300ms;
-      z-index: 1;
-    }
-    
-    .chart-container:hover .chart-hint {
-      opacity: 1;
     }
 
     /* Market List */
@@ -434,7 +425,6 @@
           </div>
           <div id="floating-tooltip"></div>
           <div id="chart"></div>
-          <div class="chart-hint"> Scroll to zoom • Drag to pan • Click market to change</div>
         </div>
       </main>
     </div>

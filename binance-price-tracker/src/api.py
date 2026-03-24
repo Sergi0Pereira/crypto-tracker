@@ -50,8 +50,7 @@ async def get_klines(symbol: str, interval: str = "1h", limit: int = 100, endTim
         
     async with httpx.AsyncClient() as client:
         try:
-            # If an API key was needed, it would be added here securely from env vars:
-            # headers = {"X-MBX-APIKEY": settings.binance_api_key}
+            # We proxy the request to Binance directly
             response = await client.get(url, params=params)
             response.raise_for_status()
             return response.json()

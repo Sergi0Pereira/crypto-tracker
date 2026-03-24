@@ -1,30 +1,53 @@
-# Use official Python lightweight image
+# Stage 1: Build the frontend
+FROM node:20-slim AS frontend-builder
+WORKDIR /app/static
+
+# Install dependencies and build CSS
+COPY static/package*.json ./
+RUN npm ci
+
+COPY static/ ./
+RUN npx @tailwindcss/cli -i ./src/input.css -o ./css/output.css --minify
+
+# Stage 2: Production environment (Python + NGINX + Supervisord)
 FROM python:3.13-slim
+WORKDIR /app
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Create and set working directory
-WORKDIR /app
+# Install NGINX and Supervisor
+RUN apt-get update && apt-get install -y nginx supervisor \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements file
-COPY requirements.txt /app/
+# Create non-root user and setup permissions
+RUN adduser --disabled-password --gecos "" appuser \
+    && chown -R appuser:appuser /app \
+    && chown -R appuser:appuser /var/lib/nginx \
+    && chown -R appuser:appuser /var/log/nginx
 
-# Install dependencies
+# Copy Python requirements
+COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
-# Copy the entire project
-COPY . /app/
+# Copy backend source
+COPY src/ ./src/
+COPY symbols.txt ./
 
-# Create a non-root user to run the application
-RUN adduser --disabled-password --gecos "" appuser \
-    && chown -R appuser:appuser /app
+# Copy built frontend assets from the builder stage
+COPY --from=frontend-builder /app/static /app/static
+
+# Configure NGINX and Supervisor
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Set non-root user
 USER appuser
 
-# Expose the application port
-EXPOSE 8000
+# Expose port 8080 (NGINX reverse proxy)
+EXPOSE 8080
 
-# Start the FastAPI application using Uvicorn
-CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start supervisord to manage both NGINX and Uvicorn
+CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
