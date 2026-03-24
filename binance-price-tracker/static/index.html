@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.binance.com;" />
+  <link rel="icon" href="data:,">
+  <title>Crypto Tracker | Real-time Price Monitor</title>
+
+  <!-- Compiled Tailwind CSS -->
+  <link rel="stylesheet" href="/static/css/output.css" />
+
+  <!-- DOMPurify for XSS Protection -->
+  <script src="/static/node_modules/dompurify/dist/purify.min.js"></script>
+
+  <!-- Lightweight Charts - TradingView's lightweight library -->
+  <script src="/static/node_modules/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+
+  <style>
+    :root {
+      --color-bg-primary: #131722;
+      --color-bg-panel: #1e222d;
+      --color-bg-panel-light: #2b3139;
+      --color-text-primary: #d1d4dc;
+      --color-text-secondary: #787b86;
+      --color-border: #2a2e39;
+      --color-accent: #2962ff;
+      --color-accent-hover: #1e53e5;
+      --color-success: #089981;
+      --color-success-light: #05b26d;
+      --color-danger: #f23645;
+      --color-danger-light: #e63454;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    html, body { width: 100%; height: 100%; margin: 0; padding: 0; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background-color: var(--color-bg-primary); color: var(--color-text-primary); font-family: 'Inter', 'Roboto', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif; height: 100vh; overflow: hidden; }
+
+    .app-container { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    .main-content { display: flex; flex: 1; overflow: hidden; }
+
+    /* Header */
+    header { background-color: var(--color-bg-panel); border-bottom: 1px solid var(--color-border); height: 3.5rem; display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; flex-shrink: 0; }
+    .header-content { display: flex; align-items: center; gap: 1rem; }
+    .logo { width: 2.5rem; height: 2.5rem; border-radius: 50%; background: linear-gradient(135deg, #2962ff 0%, #1e53e5 100%); display: flex; align-items: center; justify-content: center; font-weight: bold; color: #fff; font-size: 1.5rem; box-shadow: var(--shadow-sm); }
+    h1 { font-size: 1.375rem; font-weight: 700; letter-spacing: 0.02em; }
+    
+    .connection-status { display: flex; align-items: center; gap: 0.4rem; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #9ea3ae; }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; background-color: var(--color-text-secondary); }
+    .status-dot.live { 
+      background-color: var(--color-success); 
+      animation: pulse 1.5s infinite ease-in-out; 
+    }
+    @keyframes pulse {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(8, 153, 129, 0.7); }
+      70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(8, 153, 129, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(8, 153, 129, 0); }
+    }
+
+    /* Sidebar */
+    aside { width: 18rem; background-color: var(--color-bg-panel); border-right: 1px solid var(--color-border); display: flex; flex-direction: column; overflow: hidden; }
+    .sidebar-header { padding: 1rem 1rem; border-bottom: 1px solid var(--color-border); }
+    .sidebar-header h2 { font-size: 13px; font-weight: 700; color: #9ea3ae; text-transform: uppercase; letter-spacing: 0.08em; }
+
+    .market-list { flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--color-border) transparent; }
+    .market-list::-webkit-scrollbar { width: 0.4rem; }
+    .market-list::-webkit-scrollbar-track { background: transparent; }
+    .market-list::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 0.2rem; }
+    .market-list::-webkit-scrollbar-thumb:hover { background: #3d424a; }
+
+    /* Main Content Area */
+    main { flex: 1; display: flex; flex-direction: column; background-color: var(--color-bg-panel); overflow: hidden; }
+    
+    .header-info { height: auto; min-height: 4.5rem; border-bottom: 1px solid var(--color-border); padding: 1rem 1.5rem; display: flex; align-items: center; gap: 1.5rem; flex-shrink: 0; flex-wrap: wrap; }
+    
+    .symbol-info { display: flex; flex-direction: column; gap: 0.25rem; }
+    .symbol-info h2 { font-size: 2.25rem; font-weight: 800; letter-spacing: -0.01em; }
+    .symbol-info a { font-size: 13px; color: #3b82f6; text-decoration: none; font-weight: 500; transition: color 200ms; }
+    .symbol-info a:hover { color: #60a5fa; }
+    
+    .info-block { display: flex; flex-direction: column; gap: 0.25rem; }
+    .info-label { font-size: 12px; font-weight: 600; color: #9ea3ae; text-transform: uppercase; letter-spacing: 0.05em; }
+    .info-value { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    
+    /* Time Range Selector */
+    .time-range-selector { display: flex; gap: 0.5rem; margin-left: auto; align-items: center; }
+    
+    /* Search Bar */
+    .search-container {
+      display: flex;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--color-border);
+      background-color: var(--color-bg-panel);
+      position: relative;
+    }
+    .search-icon {
+      position: absolute;
+      left: 1.6rem;
+      color: var(--color-text-secondary);
+      font-size: 14px;
+    }
+    #symbol-search {
+      width: 100%;
+      background-color: var(--color-bg-panel-light);
+      border: 1px solid var(--color-border);
+      color: var(--color-text-primary);
+      padding: 0.5rem 2rem 0.5rem 2rem;
+      border-radius: 0.375rem;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 150ms ease;
+    }
+    #symbol-search:focus {
+      border-color: var(--color-accent);
+    }
+    #symbol-search::placeholder {
+      color: var(--color-text-secondary);
+    }
+    .clear-btn {
+      position: absolute;
+      right: 1.6rem;
+      background: none;
+      border: none;
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      font-size: 0.8rem;
+      padding: 0.2rem;
+      display: none;
+    }
+    .clear-btn:hover {
+      color: var(--color-text-primary);
+    }
+
+    /* Volume Toggle Button */
+    .toggle-btn {
+      padding: 0.45rem 0.8rem;
+      background-color: var(--color-bg-panel-light);
+      color: var(--color-text-secondary);
+      border: 1px solid var(--color-border);
+      border-radius: 0.375rem;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 150ms ease;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      white-space: nowrap;
+    }
+    .toggle-btn:hover {
+      background-color: var(--color-border);
+      color: var(--color-text-primary);
+      border-color: #3d424a;
+    }
+    .toggle-btn.active {
+      background-color: #1e7f5c;
+      color: #ffffff;
+      border-color: var(--color-success);
+      font-weight: 700;
+    }
+    .volume-icon { font-size: 0.9rem; }
+    .volume-label { display: none; }
+    
+    @media (min-width: 920px) {
+      .volume-label { display: inline; }
+    }
+    
+    /* Time Range Buttons */
+    .time-range-selector { display: flex; gap: 0.5rem; margin-left: auto; align-items: center; }
+    .selector-group { display: flex; align-items: center; gap: 0.5rem; }
+    
+    .time-btn { 
+      padding: 0.45rem 1.1rem; 
+      background-color: var(--color-bg-panel-light); 
+      color: var(--color-text-secondary); 
+      border: 1px solid var(--color-border); 
+      border-radius: 0.375rem; 
+      cursor: pointer; 
+      font-size: 13px; 
+      font-weight: 600; 
+      transition: all 150ms ease; 
+    }
+    .time-btn:hover { 
+      background-color: var(--color-border);
+      color: var(--color-text-primary);
+      border-color: #3d424a;
+    }
+    .time-btn.active { 
+      background-color: var(--color-accent); 
+      color: #fff;
+      border-color: var(--color-accent);
+      font-weight: 700;
+    }
+    .time-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      background-color: var(--color-bg-panel-light);
+      color: var(--color-text-secondary);
+      border-color: var(--color-border);
+    }
+    
+    /* Chart Area */
+    .chart-container { 
+      flex: 1; 
+      display: flex; 
+      flex-direction: column; 
+      overflow: hidden; 
+      position: relative;
+      border-top: 1px solid var(--color-border);
+    }
+    
+    .chart-legend {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 10;
+      display: flex;
+      gap: 12px;
+      font-family: 'Roboto Mono', 'Courier New', 'Menlo', monospace;
+      font-size: 16px; /* Increased to 16px for better visibility */
+      background-color: rgba(30, 34, 45, 0.85);
+      padding: 10px 14px;
+      border-radius: 4px;
+      pointer-events: none;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .legend-item { color: #9ea3ae; font-weight: 700; } /* Bold labels, lighter grey */
+    .legend-val { color: #ffffff; margin-left: 6px; font-weight: 800; } /* Extra bold values */
+    
+    /* Floating Tooltip */
+    #floating-tooltip {
+      position: absolute;
+      display: none;
+      padding: 12px; /* Increased padding */
+      box-sizing: border-box;
+      font-size: 15px; /* Increased to 15px for much better readability */
+      color: #fff;
+      background-color: rgba(20, 24, 34, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      pointer-events: none;
+      z-index: 1000;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      font-family: 'Inter', 'Roboto', system-ui, -apple-system, sans-serif;
+      min-width: 160px;
+    }
+    .tt-date { font-size: 15px; margin-bottom: 8px; color: #b7bdc6; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 6px; font-weight: 600; }
+    .tt-item { display: flex; justify-content: space-between; margin-bottom: 5px; }
+    .tt-item:last-child { margin-bottom: 0; }
+    .tt-label { color: #848e9c; margin-right: 14px; }
+    .tt-value { font-weight: 600; color: #ffffff; font-family: 'Courier New', monospace; }
+
+    #chart { 
+      flex: 1;
+      width: 100%; 
+      min-height: 0;
+    }
+
+    /* Market List */
+    .market-row { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      padding: 0.85rem 1rem; /* Increased vertical padding */
+      cursor: pointer; 
+      border-bottom: 1px solid var(--color-border); 
+      transition: all 150ms ease-in-out;
+    }
+    .market-row:hover { 
+      background-color: var(--color-bg-panel-light);
+    }
+    .market-row.active {
+      background-color: var(--color-border);
+      border-left: 3px solid var(--color-accent);
+      padding-left: calc(1rem - 3px);
+    }
+    .no-results {
+      padding: 2rem 1rem;
+      text-align: center;
+      color: var(--color-text-secondary);
+      font-size: 13px;
+      font-style: italic;
+    }
+    .symbol-name { 
+      font-weight: 700; /* Bold */
+      font-size: 15px; /* Increased to 15px for better prominence */
+      letter-spacing: 0.02em;
+    }
+    .price-display { 
+      font-family: 'Roboto Mono', 'Courier New', 'Menlo', monospace; 
+      font-size: 14px; /* Increased price size for better readability */
+      font-weight: 600; /* Semi-bold */
+      font-variant-numeric: tabular-nums;
+    }
+    
+    .text-green { color: var(--color-success); }
+    .text-red { color: var(--color-danger); }
+
+    /* Background Flashes (for rows) */
+    @keyframes flashBgGreen { 0% { background-color: rgba(14, 203, 129, 0.15); } 100% { background-color: transparent; } }
+    @keyframes flashBgRed { 0% { background-color: rgba(246, 70, 93, 0.15); } 100% { background-color: transparent; } }
+    .flash-green { animation: flashBgGreen 0.6s ease-out; }
+    .flash-red { animation: flashBgRed 0.6s ease-out; }
+
+    /* Text Color Flashes (for prices) */
+    @keyframes flashTextGreen { 
+      0% { color: #0ecb81; text-shadow: 0 0 8px rgba(14, 203, 129, 0.5); } 
+      100% { color: inherit; text-shadow: none; } 
+    }
+    @keyframes flashTextRed { 
+      0% { color: #f6465d; text-shadow: 0 0 8px rgba(246, 70, 93, 0.5); } 
+      100% { color: inherit; text-shadow: none; } 
+    }
+    .price-up { animation: flashTextGreen 0.5s ease-out; }
+    .price-down { animation: flashTextRed 0.5s ease-out; }
+
+    .error-message { 
+      padding: 1rem; 
+      text-align: center; 
+      color: var(--color-danger); 
+      font-size: 0.875rem; 
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+      aside { width: 16rem; }
+    }
+
+    @media (max-width: 768px) {
+      aside { width: 14rem; }
+      .header-info { padding: 0.75rem 1rem; gap: 1rem; }
+      .symbol-info h2 { font-size: 1.75rem; }
+      .time-range-selector { margin-left: 0; width: 100%; }
+    }
+
+    @media (max-width: 640px) {
+      .main-content { flex-direction: column-reverse; }
+      aside { width: 100%; max-height: 40%; }
+      .header-info { padding: 0.75rem; flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header>
+      <div class="header-content">
+        <div class="logo">₿</div>
+        <h1>Crypto Tracker</h1>
+      </div>
+      <div id="connection-status" class="connection-status">
+        <span class="status-dot"></span>
+        <span class="status-text">Connecting...</span>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Sidebar -->
+      <aside>
+        <div class="sidebar-header">
+          <h2>Markets</h2>
+        </div>
+        <div class="search-container">
+          <span class="search-icon"></span>
+          <input type="text" id="symbol-search" placeholder="Search symbols..." autocomplete="off">
+          <button id="clear-search" class="clear-btn" aria-label="Clear search">✕</button>
+        </div>
+        <div id="market-list" class="market-list"></div>
+      </aside>
+
+      <!-- Main Chart Area -->
+      <main>
+        <!-- Header Info -->
+        <div class="header-info">
+          <div class="symbol-info">
+            <h2><span id="active-symbol">—</span></h2>
+          </div>
+          <div class="info-block">
+            <div class="info-label">Price</div>
+            <div class="info-value"><span id="current-price">—</span> USDT</div>
+          </div>
+          <div class="info-block">
+            <div class="info-label">24h Change</div>
+            <div class="info-value" id="price-change-24h">—</div>
+          </div>
+          <button id="volume-toggle-btn" class="toggle-btn" title="Volume: OFF (click to show)">
+            <span class="volume-icon"></span>
+            <span class="volume-label">Volume</span>
+          </button>
+          <div class="time-range-selector">
+            <div class="selector-group">
+              <span class="info-label">Interval</span>
+              <button class="interval-btn time-btn" data-interval="1m">1m</button>
+              <button class="interval-btn time-btn" data-interval="5m">5m</button>
+              <button class="interval-btn time-btn" data-interval="15m">15m</button>
+              <button class="interval-btn time-btn active" data-interval="1h">1H</button>
+              <button class="interval-btn time-btn" data-interval="4h">4H</button>
+              <button class="interval-btn time-btn" data-interval="1d">1D</button>
+              <button class="interval-btn time-btn" data-interval="1w">1W</button>
+            </div>
+            <div class="selector-group" style="border-left: 1px solid var(--color-border); padding-left: 1rem; margin-left: 0.5rem;">
+              <span class="info-label">Range</span>
+              <button class="range-btn time-btn active" data-range="24h">1D</button>
+              <button class="range-btn time-btn" data-range="1w">1W</button>
+              <button class="range-btn time-btn" data-range="1m">1M</button>
+              <button class="range-btn time-btn" data-range="3m">3M</button>
+              <button class="range-btn time-btn" data-range="1y">1Y</button>
+              <button class="range-btn time-btn" data-range="all">ALL</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chart -->
+        <div class="chart-container">
+          <div id="chart-legend" class="chart-legend">
+            <span class="legend-item">O<span id="legend-o" class="legend-val">—</span></span>
+            <span class="legend-item">H<span id="legend-h" class="legend-val">—</span></span>
+            <span class="legend-item">L<span id="legend-l" class="legend-val">—</span></span>
+            <span class="legend-item">C<span id="legend-c" class="legend-val">—</span></span>
+            <span class="legend-item">V<span id="legend-v" class="legend-val">—</span></span>
+          </div>
+          <div id="floating-tooltip"></div>
+          <div id="chart"></div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Application Entry Point (ES6 Modules) -->
+  <script type="module">
+    import { CryptoTrackerApp } from '/static/js/app.js';
+
+    // Initialize application when DOM is ready
+    async function initializeApp() {
+      const app = new CryptoTrackerApp();
+      await app.initialize();
+    }
+
+    // Wait for DOM to be ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initializeApp);
+    } else {
+      initializeApp();
+    }
+  </script>
+</body>
+</html>

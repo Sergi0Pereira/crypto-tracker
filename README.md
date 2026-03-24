@@ -28,7 +28,6 @@ binance-price-tracker/
 │   ├── index.html        # Main dashboard
 │   ├── css/              # Stylesheets
 │   └── js/               # Frontend scripts, UI, and chart managers
-└── tests/                # Unit and integration tests
 ```
 
 ## Prerequisites
