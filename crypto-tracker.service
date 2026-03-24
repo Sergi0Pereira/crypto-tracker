@@ -1,0 +1,32 @@
+[Unit]
+Description=Crypto Tracker FastAPI Application
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/home/ubuntu/crypto-tracker/binance-price-tracker
+Environment=PATH=/home/ubuntu/crypto-tracker/binance-price-tracker/venv/bin
+ExecStart=/home/ubuntu/crypto-tracker/binance-price-tracker/venv/bin/gunicorn -k uvicorn.workers.UvicornWorker src.api:app --bind 127.0.0.1:8000 --workers 4 --worker-connections 1000
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=crypto-tracker
+
+# Security settings
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/home/ubuntu/crypto-tracker/binance-price-tracker
+ProtectHome=yes
+
+# Resource limits
+LimitNOFILE=65536
+MemoryLimit=512M
+
+[Install]
+WantedBy=multi-user.target

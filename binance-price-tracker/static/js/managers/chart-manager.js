@@ -1,4 +1,5 @@
 import { CONFIG } from '../config.js';
+import { formatPrice } from '../utils/formatters.js';
 
 export class ChartManager {
   constructor(chartContainer, onConfigChange) {
@@ -39,12 +40,38 @@ export class ChartManager {
         const newRange = e.target.dataset.range;
         this.currentRange = newRange;
         
+        // Dynamic Interval Disabling Logic
+        const disabledIntervals = {
+          '1m': ['1m', '5m'],
+          '3m': ['1m', '5m', '15m'],
+          '1y': ['1m', '5m', '15m', '1h', '4h'],
+          'all': ['1m', '5m', '15m', '1h', '4h']
+        }[newRange] || [];
+
+        intervalBtns.forEach(b => {
+          if (disabledIntervals.includes(b.dataset.interval)) {
+            b.classList.add('disabled-btn');
+            b.disabled = true;
+          } else {
+            b.classList.remove('disabled-btn');
+            b.disabled = false;
+          }
+        });
+
         // Dynamic Resolution Logic
         let newInterval = this.currentInterval;
         if (newRange === '1y' || newRange === 'all') newInterval = '1d';
-        else if (newRange === '3m' || newRange === '1m') newInterval = '4h';
+        else if (newRange === '3m') newInterval = '4h';
+        else if (newRange === '1m') newInterval = '15m'; // or whatever is next valid if current is disabled
         else if (newRange === '1w') newInterval = '1h';
         else if (newRange === '24h') newInterval = '15m';
+        
+        // Ensure new interval is valid, fallback to 4h/1d if disabled
+        if (disabledIntervals.includes(newInterval)) {
+          if (newRange === '1y' || newRange === 'all') newInterval = '1d';
+          else if (newRange === '3m') newInterval = '4h';
+          else if (newRange === '1m') newInterval = '15m';
+        }
         
         // Update interval UI
         if (newInterval !== this.currentInterval) {
@@ -94,7 +121,8 @@ export class ChartManager {
         textColor: '#d1d4dc',
         background: { color: '#131722', type: 'solid' },
         fontSize: 15, // Increased from 12px for much better readability on axis & crosshair
-        fontFamily: "'Inter', 'Roboto', system-ui, -apple-system, sans-serif"
+        fontFamily: "'Inter', 'Roboto', system-ui, -apple-system, sans-serif",
+        attributionLogo: false
       },
       width: this.chartContainer.clientWidth,
       height: this.chartContainer.clientHeight,
@@ -188,7 +216,6 @@ export class ChartManager {
         if (toolTip) {
           toolTip.style.display = 'block';
           
-          const formatPrice = (val) => val >= 10 ? val.toFixed(2) : val.toFixed(4);
           const formatVolume = (val) => {
             if (!val) return '—';
             if (val >= 1e9) return (val / 1e9).toFixed(2) + 'B';
@@ -395,7 +422,6 @@ export class ChartManager {
       return;
     }
 
-    const formatPrice = (val) => val >= 10 ? val.toFixed(2) : val.toFixed(4);
     const formatVolume = (val) => {
       if (!val) return '—';
       if (val >= 1e9) return (val / 1e9).toFixed(2) + 'B';
@@ -507,6 +533,20 @@ export class ChartManager {
     // Sort by time just in case
     candleData.sort((a, b) => a.time - b.time);
     volumeData.sort((a, b) => a.time - b.time);
+
+    if (candleData.length > 0) {
+      const lastPrice = candleData[candleData.length - 1].close;
+      const precision = lastPrice < 1.0 ? 8 : 4;
+      const minMove = lastPrice < 1.0 ? 0.00000001 : 0.0001;
+      
+      this.candleSeries.applyOptions({
+        priceFormat: {
+          type: 'price',
+          precision: precision,
+          minMove: minMove,
+        }
+      });
+    }
 
     this.candleSeries.setData(candleData);
     this.volumeSeries.setData(volumeData);

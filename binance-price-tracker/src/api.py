@@ -1,7 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
+import asyncio
+import websockets
+import json
 
 from src.config import Settings
 from src.infrastructure.symbols_loader import SymbolsFileLoader
@@ -47,8 +50,7 @@ async def get_klines(symbol: str, interval: str = "1h", limit: int = 100, endTim
         
     async with httpx.AsyncClient() as client:
         try:
-            # If an API key was needed, it would be added here securely from env vars:
-            # headers = {"X-MBX-APIKEY": settings.binance_api_key}
+            # We proxy the request to Binance directly
             response = await client.get(url, params=params)
             response.raise_for_status()
             return response.json()
@@ -56,6 +58,45 @@ async def get_klines(symbol: str, interval: str = "1h", limit: int = 100, endTim
             raise HTTPException(status_code=e.response.status_code, detail="Error fetching data from upstream API")
         except Exception as e:
             raise HTTPException(status_code=500, detail="Internal Server Error")
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        # Get symbols from query parameters or use default
+        symbols = websocket.query_params.get('symbols', 'btcusdt,ethusdt').split(',')
+        streams = [f"{symbol.lower()}@ticker" for symbol in symbols]
+        binance_url = f"wss://stream.binance.com:9443/stream?streams={'/'.join(streams)}"
+
+        async with websockets.connect(binance_url) as binance_ws:
+            async def forward_to_client():
+                try:
+                    async for message in binance_ws:
+                        await websocket.send_text(message)
+                except Exception as e:
+                    print(f"Error forwarding to client: {e}")
+
+            async def forward_to_binance():
+                try:
+                    while True:
+                        data = await websocket.receive_text()
+                        # If client sends data, forward to Binance (though typically not needed for ticker streams)
+                        await binance_ws.send(data)
+                except Exception as e:
+                    print(f"Error forwarding to Binance: {e}")
+
+            # Run both forwarding tasks concurrently
+            await asyncio.gather(
+                forward_to_client(),
+                forward_to_binance()
+            )
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+    finally:
+        try:
+            await websocket.close()
+        except:
+            pass
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():

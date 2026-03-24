@@ -10,7 +10,11 @@
  * @returns {string} Formatted price
  */
 export function formatPrice(price) {
-  return parseFloat(price).toFixed(4);
+  const num = parseFloat(price);
+  if (num < 1.0) {
+    return num.toFixed(8);
+  }
+  return num.toFixed(4);
 }
 
 /**

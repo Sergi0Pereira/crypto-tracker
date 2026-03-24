@@ -22,14 +22,14 @@ export class WebSocketManager {
   }
 
   /**
-   * Establish WebSocket connection to Binance
-   * Subscribes to @ticker streams for all symbols
+   * Establish WebSocket connection to backend proxy
+   * Backend will handle connection to Binance WebSocket
    */
   connect() {
-    const streams = this.symbols.map(s => `${s.toLowerCase()}@ticker`).join('/');
-    const url = `${CONFIG.BINANCE_WS}?streams=${streams}`;
+    const symbolsParam = this.symbols.join(',');
+    const url = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws?symbols=${symbolsParam}`;
     
-    console.log('🔌 Connecting to WebSocket:', url);
+    console.log('Connecting to WebSocket:', url);
     this.ws = new WebSocket(url);
     
     if (this.statusHandler) this.statusHandler('connecting');
@@ -46,7 +46,7 @@ export class WebSocketManager {
    * Handle successful connection
    */
   handleOpen() {
-    console.log(' WebSocket connected');
+    console.log('WebSocket connected');
     if (this.statusHandler) this.statusHandler('connected');
   }
 
