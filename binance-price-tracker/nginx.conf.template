@@ -24,7 +24,9 @@ http {
 
     server {
         listen 8080;
-        server_name _;
+        
+        # Domain name configured dynamically via envsubst
+        server_name ${DOMAIN_NAME};
 
         # Security headers
         add_header X-Frame-Options DENY;

@@ -91,15 +91,20 @@ docker push your-registry/crypto-tracker:latest
 ```
 
 ### 3. Run the Container on your VM
-On your target server, pull the image and run it in detached mode. The container internally runs NGINX on port 8080. You can map it to port 80 (HTTP) on your host VM:
+On your target server, pull the image and run it in detached mode. The container runs NGINX internally on port 8080. You can map it to port 80 (HTTP) on your host machine.
+
+You can configure the NGINX internal domain name dynamically by passing the `DOMAIN_NAME` environment variable (the default is `localhost`).
+
 ```bash
-docker run -d -p 80:8080 --name crypto-app your-registry/crypto-tracker:latest
+docker run -d -p 80:8080 -e DOMAIN_NAME=cryptotracker.com --name crypto-app your-registry/crypto-tracker:latest
 ```
 
-Once running, you can access the application directly via your VM's public IP or domain name at `http://your-vm-ip`.
+Once running, the container's entrypoint script uses `envsubst` to automatically replace `${DOMAIN_NAME}` in the NGINX configuration template with the domain you provided, and starts both Uvicorn and NGINX safely.
+
+You can then access the application directly via your VM's public IP or domain name at `http://cryptotracker.com`.
 
 ### 4. Monitoring and Logs
-The container runs both the FastAPI backend and NGINX reverse proxy managed by `supervisord`. To check the consolidated logs:
+The container runs both the FastAPI backend and NGINX reverse proxy managed by an internal script. To check the consolidated logs:
 ```bash
 docker logs -f crypto-app
 ```
