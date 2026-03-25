@@ -5,7 +5,7 @@
  * Decoupled from business logic via static methods
  */
 
-import { CONFIG, CSS_CLASSES, DOM_ELEMENTS } from '../config.js';
+import { CSS_CLASSES, DOM_ELEMENTS } from '../constants.js';
 import { formatPrice, formatChange, getColorClass } from '../utils/formatters.js';
 
 export class UIManager {

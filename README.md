@@ -28,6 +28,7 @@ binance-price-tracker/
 │   ├── index.html        # Main dashboard
 │   ├── css/              # Stylesheets
 │   └── js/               # Frontend scripts, UI, and chart managers
+└── tests/                # Unit and integration tests
 ```
 
 ## Prerequisites
@@ -80,6 +81,7 @@ This guide provides step-by-step instructions for containerizing and deploying t
 From the `binance-price-tracker` directory, build the image using the provided multi-stage Dockerfile:
 ```bash
 docker build -t your-registry/crypto-tracker:latest .
+
 ```
 
 ### 2. Push to a Private Registry

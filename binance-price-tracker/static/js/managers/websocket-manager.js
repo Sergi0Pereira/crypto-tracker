@@ -5,7 +5,7 @@
  * Uses callback pattern for decoupling (dependency inversion)
  */
 
-import { CONFIG } from '../config.js';
+import { WS_STATUS } from '../constants.js';
 
 export class WebSocketManager {
   /**

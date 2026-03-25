@@ -1,14 +1,10 @@
 /**
  * Formatting Utilities
  * Pure functions for data formatting
- * No side effects, no dependencies on external state
  */
 
-/**
- * Format price to 4 decimal places
- * @param {number} price - The price value
- * @returns {string} Formatted price
- */
+import { CSS_CLASSES, INTERVALS } from '../constants.js';
+
 export function formatPrice(price) {
   const num = parseFloat(price);
   if (num < 1.0) {
@@ -17,30 +13,56 @@ export function formatPrice(price) {
   return num.toFixed(4);
 }
 
-/**
- * Format percentage change with +/- sign
- * @param {number} change - The change percentage
- * @returns {string} Formatted change (e.g., "+5.25%" or "-3.10%")
- */
 export function formatChange(change) {
   return (change > 0 ? '+' : '') + parseFloat(change).toFixed(2) + '%';
 }
 
-/**
- * Get color class based on value comparison
- * @param {number} value - Current value
- * @param {number} prevValue - Previous value for comparison
- * @returns {string} CSS class name ('text-green' or 'text-red')
- */
-export function getColorClass(value, prevValue) {
-  return value >= prevValue ? 'text-green' : 'text-red';
+export function getColorClass(value, prevValue = 0) {
+  return value >= prevValue ? CSS_CLASSES.TEXT_GREEN : CSS_CLASSES.TEXT_RED;
 }
 
-/**
- * Format timestamp to locale time string
- * @param {number} timestamp - Unix timestamp in milliseconds
- * @returns {string} Formatted time (e.g., "14:30:45")
- */
 export function formatTimestamp(timestamp) {
   return new Date(timestamp).toLocaleTimeString();
+}
+
+export function getBucketedTime(timestampMs, interval) {
+  const date = new Date(timestampMs);
+  
+  const y = date.getUTCFullYear();
+  const m = date.getUTCMonth();
+  const d = date.getUTCDate();
+  const h = date.getUTCHours();
+  const min = date.getUTCMinutes();
+
+  let bucketDate;
+
+  switch (interval.toLowerCase()) {
+    case INTERVALS.ONE_MINUTE:
+      bucketDate = new Date(Date.UTC(y, m, d, h, min));
+      break;
+    case INTERVALS.FIVE_MINUTES:
+      bucketDate = new Date(Date.UTC(y, m, d, h, Math.floor(min / 5) * 5));
+      break;
+    case INTERVALS.FIFTEEN_MINUTES:
+      bucketDate = new Date(Date.UTC(y, m, d, h, Math.floor(min / 15) * 15));
+      break;
+    case INTERVALS.ONE_HOUR:
+      bucketDate = new Date(Date.UTC(y, m, d, h, 0));
+      break;
+    case INTERVALS.FOUR_HOURS:
+      bucketDate = new Date(Date.UTC(y, m, d, Math.floor(h / 4) * 4, 0));
+      break;
+    case INTERVALS.ONE_DAY:
+      bucketDate = new Date(Date.UTC(y, m, d, 0, 0));
+      break;
+    case INTERVALS.ONE_WEEK:
+      const day = date.getUTCDay();
+      const diff = date.getUTCDate() - day + (day === 0 ? -6 : 1);
+      bucketDate = new Date(Date.UTC(y, m, diff, 0, 0));
+      break;
+    default:
+      bucketDate = new Date(Date.UTC(y, m, d, h, min));
+  }
+
+  return Math.floor(bucketDate.getTime() / 1000);
 }
