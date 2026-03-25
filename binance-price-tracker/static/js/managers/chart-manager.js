@@ -1,5 +1,5 @@
-import { CONFIG } from '../config.js';
-import { formatPrice } from '../utils/formatters.js';
+import { INTERVALS, TIME_RANGES, DOM_ELEMENTS, CSS_CLASSES, EVENT_TYPES } from '../constants.js';
+import { formatPrice, getBucketedTime } from '../utils/formatters.js';
 
 export class ChartManager {
   constructor(chartContainer, onConfigChange) {
@@ -9,8 +9,8 @@ export class ChartManager {
     this.volumeSeries = null;
     this.klineData = {};
     
-    this.currentInterval = '1h';
-    this.currentRange = '24h';
+    this.currentInterval = INTERVALS.ONE_HOUR;
+    this.currentRange = TIME_RANGES.ONE_DAY;
     
     this.onConfigChange = onConfigChange; // Called when interval or range changes
     
@@ -24,8 +24,8 @@ export class ChartManager {
     const intervalBtns = document.querySelectorAll('.interval-btn');
     intervalBtns.forEach(btn => {
       btn.addEventListener('click', (e) => {
-        intervalBtns.forEach(b => b.classList.remove('active'));
-        e.target.classList.add('active');
+        intervalBtns.forEach(b => b.classList.remove(CSS_CLASSES.ACTIVE));
+        e.target.classList.add(CSS_CLASSES.ACTIVE);
         this.currentInterval = e.target.dataset.interval;
         if (this.onConfigChange) this.onConfigChange(this.currentInterval, this.currentRange);
       });
@@ -35,8 +35,8 @@ export class ChartManager {
     const rangeBtns = document.querySelectorAll('.range-btn');
     rangeBtns.forEach(btn => {
       btn.addEventListener('click', (e) => {
-        rangeBtns.forEach(b => b.classList.remove('active'));
-        e.target.classList.add('active');
+        rangeBtns.forEach(b => b.classList.remove(CSS_CLASSES.ACTIVE));
+        e.target.classList.add(CSS_CLASSES.ACTIVE);
         const newRange = e.target.dataset.range;
         this.currentRange = newRange;
         
@@ -44,8 +44,8 @@ export class ChartManager {
         const disabledIntervals = {
           '1m': ['1m', '5m'],
           '3m': ['1m', '5m', '15m'],
-          '1y': ['1m', '5m', '15m', '1h', '4h'],
-          'all': ['1m', '5m', '15m', '1h', '4h']
+          '1y': ['1m', '5m', '15m', INTERVALS.ONE_HOUR, '4h'],
+          'all': ['1m', '5m', '15m', INTERVALS.ONE_HOUR, '4h']
         }[newRange] || [];
 
         intervalBtns.forEach(b => {
@@ -63,8 +63,8 @@ export class ChartManager {
         if (newRange === '1y' || newRange === 'all') newInterval = '1d';
         else if (newRange === '3m') newInterval = '4h';
         else if (newRange === '1m') newInterval = '15m'; // or whatever is next valid if current is disabled
-        else if (newRange === '1w') newInterval = '1h';
-        else if (newRange === '24h') newInterval = '15m';
+        else if (newRange === '1w') newInterval = INTERVALS.ONE_HOUR;
+        else if (newRange === TIME_RANGES.ONE_DAY) newInterval = '15m';
         
         // Ensure new interval is valid, fallback to 4h/1d if disabled
         if (disabledIntervals.includes(newInterval)) {
@@ -77,8 +77,8 @@ export class ChartManager {
         if (newInterval !== this.currentInterval) {
           this.currentInterval = newInterval;
           intervalBtns.forEach(b => {
-            if (b.dataset.interval === newInterval) b.classList.add('active');
-            else b.classList.remove('active');
+            if (b.dataset.interval === newInterval) b.classList.add(CSS_CLASSES.ACTIVE);
+            else b.classList.remove(CSS_CLASSES.ACTIVE);
           });
         }
         
@@ -90,17 +90,17 @@ export class ChartManager {
     const volumeBtn = document.getElementById('volume-toggle-btn');
     if (volumeBtn) {
       if (this.showVolume) {
-        volumeBtn.classList.add('active');
+        volumeBtn.classList.add(CSS_CLASSES.ACTIVE);
         volumeBtn.title = 'Volume: ON (click to hide)';
       }
       
       volumeBtn.addEventListener('click', () => {
         this.showVolume = !this.showVolume;
         if (this.showVolume) {
-          volumeBtn.classList.add('active');
+          volumeBtn.classList.add(CSS_CLASSES.ACTIVE);
           volumeBtn.title = 'Volume: ON (click to hide)';
         } else {
-          volumeBtn.classList.remove('active');
+          volumeBtn.classList.remove(CSS_CLASSES.ACTIVE);
           volumeBtn.title = 'Volume: OFF (click to show)';
         }
         if (this.volumeSeries) {
@@ -555,58 +555,91 @@ export class ChartManager {
     this.klineData[symbol] = { candleData, volumeData };
   }
 
-  updateCurrentPrice(symbol, price) {
+  updateCurrentPrice(symbol, price, rawTimestamp) {
     if (!this.klineData[symbol]) return;
     const { candleData, volumeData } = this.klineData[symbol];
     if (candleData.length === 0) return;
 
-    // Get the last candle
-    const lastCandle = candleData[candleData.length - 1];
-    
-    // Check if we need to update the close/high/low
-    let updated = false;
-    if (price !== lastCandle.close) {
-      lastCandle.close = price;
-      if (price > lastCandle.high) lastCandle.high = price;
-      if (price < lastCandle.low) lastCandle.low = price;
-      updated = true;
-    }
+    // Use event timestamp or current time, then bucket it to the current chart interval
+    const timestampMs = rawTimestamp || Date.now();
+    const currentBucketTime = getBucketedTime(timestampMs, this.currentInterval);
 
-    if (updated) {
-      this.candleSeries.update(lastCandle);
+    // Get the last candle
+    let lastCandle = candleData[candleData.length - 1];
+    
+    // Debugging logic to verify if the bucket logic sees a new interval
+    // console.log(`Current Bucket: ${currentBucketTime}, Last Candle: ${lastCandle.time}. Diff: ${currentBucketTime - lastCandle.time}`);
+
+    if (currentBucketTime > lastCandle.time) {
+      // Time crossed into a new interval bucket! Draw a new candle.
+      const newCandle = {
+        time: currentBucketTime,
+        open: lastCandle.close,
+        high: Math.max(lastCandle.close, price),
+        low: Math.min(lastCandle.close, price),
+        close: price
+      };
       
-      // Update volume color based on new close
-      if (volumeData.length > 0) {
-        const lastVol = volumeData[volumeData.length - 1];
-        const isUp = lastCandle.close >= lastCandle.open;
-        const newColor = isUp ? 'rgba(8, 153, 129, 0.5)' : 'rgba(242, 54, 69, 0.5)';
-        if (lastVol.color !== newColor) {
-          lastVol.color = newColor;
-          this.volumeSeries.update(lastVol);
+      candleData.push(newCandle);
+      this.candleSeries.update(newCandle);
+      
+      // Also push a new volume block
+      const isUp = newCandle.close >= newCandle.open;
+      const newColor = isUp ? 'rgba(8, 153, 129, 0.5)' : 'rgba(242, 54, 69, 0.5)';
+      const newVol = {
+        time: currentBucketTime,
+        value: 0, // Base value for a new candle
+        color: newColor
+      };
+      volumeData.push(newVol);
+      this.volumeSeries.update(newVol);
+      
+    } else {
+      // Still in the same time bucket. Update the close/high/low of the existing candle.
+      let updated = false;
+      if (price !== lastCandle.close) {
+        lastCandle.close = price;
+        if (price > lastCandle.high) lastCandle.high = price;
+        if (price < lastCandle.low) lastCandle.low = price;
+        updated = true;
+      }
+
+      if (updated) {
+        this.candleSeries.update(lastCandle);
+        
+        // Update volume color based on new close
+        if (volumeData.length > 0) {
+          const lastVol = volumeData[volumeData.length - 1];
+          const isUp = lastCandle.close >= lastCandle.open;
+          const newColor = isUp ? 'rgba(8, 153, 129, 0.5)' : 'rgba(242, 54, 69, 0.5)';
+          if (lastVol.color !== newColor) {
+            lastVol.color = newColor;
+            this.volumeSeries.update(lastVol);
+          }
         }
       }
     }
   }
 
   static getLimitForRange(range, interval) {
-    if (range === 'all') return 100000; // Basically infinite
+    if (range === TIME_RANGES.ALL) return 100000; // Basically infinite
 
     const rangeMs = {
-      '24h': 24 * 60 * 60 * 1000,
-      '1w': 7 * 24 * 60 * 60 * 1000,
-      '1m': 30 * 24 * 60 * 60 * 1000,
-      '3m': 90 * 24 * 60 * 60 * 1000,
-      '1y': 365 * 24 * 60 * 60 * 1000
+      [TIME_RANGES.ONE_DAY]: 24 * 60 * 60 * 1000,
+      [TIME_RANGES.ONE_WEEK]: 7 * 24 * 60 * 60 * 1000,
+      [TIME_RANGES.ONE_MONTH]: 30 * 24 * 60 * 60 * 1000,
+      [TIME_RANGES.THREE_MONTHS]: 90 * 24 * 60 * 60 * 1000,
+      [TIME_RANGES.ONE_YEAR]: 365 * 24 * 60 * 60 * 1000
     };
     
     const intervalMs = {
-      '1m': 60 * 1000,
-      '5m': 5 * 60 * 1000,
-      '15m': 15 * 60 * 1000,
-      '1h': 60 * 60 * 1000,
-      '4h': 4 * 60 * 60 * 1000,
-      '1d': 24 * 60 * 60 * 1000,
-      '1w': 7 * 24 * 60 * 60 * 1000
+      [INTERVALS.ONE_MINUTE]: 60 * 1000,
+      [INTERVALS.FIVE_MINUTES]: 5 * 60 * 1000,
+      [INTERVALS.FIFTEEN_MINUTES]: 15 * 60 * 1000,
+      [INTERVALS.ONE_HOUR]: 60 * 60 * 1000,
+      [INTERVALS.FOUR_HOURS]: 4 * 60 * 60 * 1000,
+      [INTERVALS.ONE_DAY]: 24 * 60 * 60 * 1000,
+      [INTERVALS.ONE_WEEK]: 7 * 24 * 60 * 60 * 1000
     };
 
     if (!rangeMs[range] || !intervalMs[interval]) return 500;

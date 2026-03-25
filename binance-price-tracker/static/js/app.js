@@ -9,7 +9,7 @@ import { ChartManager } from './managers/chart-manager.js';
 import { WebSocketManager } from './managers/websocket-manager.js';
 import { MarketDataManager } from './managers/market-data-manager.js';
 import { UIManager } from './ui/ui-manager.js';
-import { DOM_ELEMENTS, CONFIG } from './config.js';
+import { DOM_ELEMENTS, EVENT_TYPES, INTERVALS, TIME_RANGES } from './constants.js';
 
 export class CryptoTrackerApp {
   /**
@@ -344,7 +344,8 @@ export class CryptoTrackerApp {
       if (symbol === this.activeSymbol) {
         UIManager.updateHeader(symbol, price, change);
         if (this.chartManager && typeof this.chartManager.updateCurrentPrice === 'function') {
-          this.chartManager.updateCurrentPrice(symbol, price);
+          // Pass tickData.E (Event time in milliseconds) to ensure correct time bucketing
+          this.chartManager.updateCurrentPrice(symbol, price, tickData.E);
         }
       }
     } catch (error) {
